@@ -1,0 +1,24 @@
+{
+  "name": "movie-metadata-scraper",
+  "version": "1.0.0",
+  "description": "Movie metadata scraper for artwork, trailers and subtitles",
+  "exports": "./index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
+  },
+  "keywords": [
+    "scraping",
+    "movies",
+    "metadata"
+  ],
+  "author": "DA",
+  "dependencies": {
+    "axios": "^0.24.0",
+    "chalk": "^4.1.2",
+    "js-levenshtein": "^1.1.6",
+    "ora": "^6.0.1",
+    "puppeteer": "^11.0.0"
+  }
+}
