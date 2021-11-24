@@ -1,11 +1,17 @@
-import pageScraper from './impawardsScraper.js';
+import Impawards from './scrapers/impawards/index.js';
 
-async function scrapeAll(browserInstance) {
+const availableScrapers = {
+  Impawards,
+  FanartTv: ''
+};
+
+async function scrapeAll(browserInstance, filmName, scrapers) {
   let browser;
   try {
     browser = await browserInstance;
-    await pageScraper.scraper(browser);
-
+    // Run scrapers
+    scrapers.forEach(async (page) =>
+      await availableScrapers[page].scraper(browser, filmName));
   }
   catch (err) {
     console.log("Could not resolve the browser instance => ", err);
@@ -13,4 +19,4 @@ async function scrapeAll(browserInstance) {
 }
 
 export { scrapeAll };
-export default (browserInstance) => scrapeAll(browserInstance);
+export default (browserInstance, filmName, scrapers) => scrapeAll(browserInstance, filmName, scrapers);

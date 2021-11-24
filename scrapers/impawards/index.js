@@ -1,12 +1,12 @@
 import { existsSync, mkdirSync } from 'fs';
 import chalk from 'chalk';
+import path from 'path';
 import levenshtein from 'js-levenshtein';
 import ora from 'ora';
-import downloadImage from './utils/files.js';
+import downloadImage from '../../utils/files.js';
 
 const scraperObject = {
   url: 'http://www.impawards.com',
-  movieName: 'Taxi driver',
   posterSize: 'xlg', // xxlg - xlg
 
   async acceptCookies(page) {
@@ -45,7 +45,7 @@ const scraperObject = {
       }
     }
     // Navigate to the most accurate movie
-    const mostAccurateMovie = urls.length ? urls[0].href : null;
+    const mostAccurateMovie = urls.length ? urls[0] : null;
     return new Promise((resolve, reject) => resolve(mostAccurateMovie));
   },
 
@@ -69,7 +69,7 @@ const scraperObject = {
   
   downloadPoster(posterIndex, posterURL) {
     const index = posterIndex +1;
-    const posterName = `${this.movieName.replace(/\s/g, '-').toLowerCase()}-${index < 9 ? '0' + index.toString() : index}`;
+    const posterName = `${this.movieName.replace(/\s/g, '-').toLowerCase()}-${index < 10 ? '0' + index.toString() : index}`;
     const fileExtensionPattern = /\.([0-9a-z]+)(?=[?#])|(\.)(?:[\w]+)$/gmi;
     const extension = posterURL.match(fileExtensionPattern);
 
@@ -77,12 +77,12 @@ const scraperObject = {
     if (!existsSync(dir)){
       mkdirSync(dir, { recursive: true });
     }
-    // const path = resolve(__dirname, dir, posterName + extension);
-    const path = new URL(dir + '/' +posterName + extension, import.meta.url);
-    return downloadImage(posterURL, path);
+    const localPath = path.join(process.cwd(), dir + '/' +posterName + extension);
+    return downloadImage(posterURL, localPath);
   },
 
-  async scraper(browser) {
+  async scraper(browser, movieName) {
+    this.movieName = movieName;
     let page = await browser.newPage();
     console.log(`Navigating to ${this.url}...`);
     // Navigate to the selected page
@@ -93,7 +93,8 @@ const scraperObject = {
     // Select the most accurate movie
     const mostAccurateMovie = await this.selectMostAccurateMovie(page);
     if (mostAccurateMovie) {
-      await page.goto(mostAccurateMovie);
+      this.movieName = mostAccurateMovie.text;
+      await page.goto(mostAccurateMovie.href);
       // Select all posters
       const picturesLink = await page.$$eval('#altdesigns a', (links) => links.map(link => link.href));
       // Download first poster
@@ -112,7 +113,7 @@ const scraperObject = {
       }
   
       spinner.stop();
-      console.log(chalk.green('Done: ') + '✅');
+      console.log(chalk.green('Impawards: ') + '✅');
     } else {
       console.log(`${chalk.yellow('⚠️ ')} Cannot find movie with name: ${chalk.underline(this.movieName)}`);
     }
