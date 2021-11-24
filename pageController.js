@@ -1,4 +1,4 @@
-import pageScraper from './pageScraper.js';
+import pageScraper from './impawardsScraper.js';
 
 async function scrapeAll(browserInstance) {
   let browser;

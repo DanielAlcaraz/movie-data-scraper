@@ -4,14 +4,9 @@ import levenshtein from 'js-levenshtein';
 import ora from 'ora';
 import downloadImage from './utils/files.js';
 
-/**
- * TODO
- * - Separate code
- * - Catch when can't find the movie
- */
 const scraperObject = {
   url: 'http://www.impawards.com',
-  movieName: '1917',
+  movieName: 'asdasdsa',
   posterSize: 'xlg', // xxlg - xlg
 
   /**
@@ -51,21 +46,21 @@ const scraperObject = {
     return downloadImage(posterURL, path);
   },
 
-  async scraper(browser) {
-    let page = await browser.newPage();
-    console.log(`Navigating to ${this.url}...`);
-    // Navigate to the selected page
-    await page.goto(this.url);
-    // Wait for the required DOM to be rendered
+  async acceptCookies(page) {
+    // Wait for the cookies modal
     await page.waitForSelector('.qc-cmp2-summary-buttons');
     // Accept cookies
     const [cookiesButton] = await page.$x('//*[@id="qc-cmp2-ui"]/div[2]/div/button[2]');
     await cookiesButton.click();
-    // Search movie name
+  },
+
+  async searchMovieByName(page) {
     await page.type('#myNavbar > form > div > input', this.movieName);
     const [moviesButton] = await page.$x('//*[@id="myNavbar"]/form/div/button');
     await moviesButton.click();
-    // Find the movie
+  },
+
+  async selectMostAccurateMovie(page) {
     await page.waitForSelector('.col-sm-8');
     const links = await page.$$eval('div.col-sm-8 .row', (links) => {
       return links.map(el => {
@@ -87,29 +82,45 @@ const scraperObject = {
       }
     }
     // Navigate to the most accurate movie
-    const mostAccurateMovie = urls[0].href;
-    await page.goto(mostAccurateMovie);
-    // Select all posters
-    const picturesLink = await page.$$eval('#altdesigns a', (links) => links.map(link => link.href));
-    // Download first poster
-    const spinner = ora(chalk.blue(`Downloading posters... `) + '📦').start();
-    const firstPosterURL = await this.getPosterFrom(page);
-    await this.downloadPoster(0, firstPosterURL);
-    // Download each poster
-    for (let index = 0; index < picturesLink.length; index++) {
-      const posterHomePage = picturesLink[index];
-      await page.goto(posterHomePage);
-      // Download poster
-      const posterURL = await this.getPosterFrom(page);
-      await this.downloadPoster(index +1, posterURL);
-      // Give some time to the webpage before the next download
-      await page.waitForTimeout(1000);
-    }
+    const mostAccurateMovie = urls.length ? urls[0].href : null;
+    return new Promise((resolve, reject) => resolve(mostAccurateMovie));
+  },
 
-    spinner.color = 'green';
-  	spinner.text = chalk.green('Done: ') + '✅';
-    spinner.stop();
-  }
+  async scraper(browser) {
+    let page = await browser.newPage();
+    console.log(`Navigating to ${this.url}...`);
+    // Navigate to the selected page
+    await page.goto(this.url);
+    await this.acceptCookies(page);
+    // Search movie name
+    await this.searchMovieByName(page);
+    // Select the most accurate movie
+    const mostAccurateMovie = await this.selectMostAccurateMovie(page);
+    if (mostAccurateMovie) {
+      await page.goto(mostAccurateMovie);
+      // Select all posters
+      const picturesLink = await page.$$eval('#altdesigns a', (links) => links.map(link => link.href));
+      // Download first poster
+      const spinner = ora(chalk.blue(`Downloading posters... `) + '📦').start();
+      const firstPosterURL = await this.getPosterFrom(page);
+      await this.downloadPoster(0, firstPosterURL);
+      // Download each poster
+      for (let index = 0; index < picturesLink.length; index++) {
+        const posterHomePage = picturesLink[index];
+        await page.goto(posterHomePage);
+        // Download poster
+        const posterURL = await this.getPosterFrom(page);
+        await this.downloadPoster(index +1, posterURL);
+        // Give some time to the webpage before the next download
+        await page.waitForTimeout(1000);
+      }
+  
+      spinner.stop();
+      console.log(chalk.green('Done: ') + '✅');
+    } else {
+      console.log(`${chalk.yellow('⚠️ ')} Cannot find movie with name: ${chalk.underline(this.movieName)}`);
+    }
+  },
 }
 
 export { scraperObject };
