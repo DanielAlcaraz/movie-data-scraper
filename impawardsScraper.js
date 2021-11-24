@@ -6,45 +6,8 @@ import downloadImage from './utils/files.js';
 
 const scraperObject = {
   url: 'http://www.impawards.com',
-  movieName: 'asdasdsa',
+  movieName: 'Taxi driver',
   posterSize: 'xlg', // xxlg - xlg
-
-  /**
-   * Get poster from current page.
-   * @returns Promise<string>
-   */
-  async getPosterFrom(page) {
-    // Get correct size poster
-    await page.waitForSelector('p.small');
-    const posterSizes = await page.$$eval('p.small a', (posters) => posters.map(link => link.href));
-    const posterHTML = posterSizes.find(sizeLink => sizeLink.search(`_${this.posterSize}`) > 0);
-    // Get poster source
-    await page.goto(posterHTML);
-    await page.waitForSelector('img.img-responsive');
-    const posterURL = await page.$$eval('img.img-responsive', imgs => imgs[0].src);
-    return new Promise((resolve, reject) => resolve(posterURL));
-  },
-
-  /**
-   * Download poster url.
-   * @param {number} posterIndex 
-   * @param {string} posterURL 
-   * @returns Promise
-   */
-  downloadPoster(posterIndex, posterURL) {
-    const index = posterIndex +1;
-    const posterName = `${this.movieName.replace(/\s/g, '-').toLowerCase()}-${index < 9 ? '0' + index.toString() : index}`;
-    const fileExtensionPattern = /\.([0-9a-z]+)(?=[?#])|(\.)(?:[\w]+)$/gmi;
-    const extension = posterURL.match(fileExtensionPattern);
-
-    const dir = `./movies/${this.movieName}/posters`;
-    if (!existsSync(dir)){
-      mkdirSync(dir, { recursive: true });
-    }
-    // const path = resolve(__dirname, dir, posterName + extension);
-    const path = new URL(dir + '/' +posterName + extension, import.meta.url);
-    return downloadImage(posterURL, path);
-  },
 
   async acceptCookies(page) {
     // Wait for the cookies modal
@@ -84,6 +47,39 @@ const scraperObject = {
     // Navigate to the most accurate movie
     const mostAccurateMovie = urls.length ? urls[0].href : null;
     return new Promise((resolve, reject) => resolve(mostAccurateMovie));
+  },
+
+  async getPosterFrom(page) {
+    // Get correct size poster
+    await page.waitForSelector('p.small');
+    const posterSizeExist = await page.$$eval('p.small > a:nth-child(1)', (posters) => !!posters[0]);
+    if (posterSizeExist) {
+      const posterSizes = await page.$$eval('p.small a', (posters) => posters.map(link => link.href));
+      const posterPage = posterSizes.find(sizeLink => sizeLink.search(`_${this.posterSize}`) > 0);
+      // Get poster source
+      await page.goto(posterPage);
+      await page.waitForSelector('img.img-responsive');
+      const posterURL = await page.$$eval('img.img-responsive', imgs => imgs[0].src);
+      return new Promise((resolve, reject) => resolve(posterURL));
+    } else {
+      const smallPosterURL = await page.$$eval('p.small img', imgs => imgs[0].src);
+      return new Promise((resolve, reject) => resolve(smallPosterURL));
+    }
+  },
+  
+  downloadPoster(posterIndex, posterURL) {
+    const index = posterIndex +1;
+    const posterName = `${this.movieName.replace(/\s/g, '-').toLowerCase()}-${index < 9 ? '0' + index.toString() : index}`;
+    const fileExtensionPattern = /\.([0-9a-z]+)(?=[?#])|(\.)(?:[\w]+)$/gmi;
+    const extension = posterURL.match(fileExtensionPattern);
+
+    const dir = `./movies/${this.movieName}/posters`;
+    if (!existsSync(dir)){
+      mkdirSync(dir, { recursive: true });
+    }
+    // const path = resolve(__dirname, dir, posterName + extension);
+    const path = new URL(dir + '/' +posterName + extension, import.meta.url);
+    return downloadImage(posterURL, path);
   },
 
   async scraper(browser) {
